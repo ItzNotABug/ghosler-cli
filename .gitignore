@@ -1,0 +1,10 @@
+# IntelliJ project files
+.idea
+*.iml
+
+# logs
+.logs
+*.log
+
+# auto gen
+node_modules
