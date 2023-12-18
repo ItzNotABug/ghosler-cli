@@ -9,6 +9,12 @@ This is a `CLI` project for managing [Ghosler](https://github.com/itznotabug/gho
 
 Ghosler-CLI uses `PM2` as a process manager to handle `Ghosler`.
 
+### Install
+
+```npm
+npm i ghosler-cli
+```
+
 ### Commands
 
 | Command               | Description                                                                                                                         |
