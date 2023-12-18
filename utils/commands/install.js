@@ -44,6 +44,6 @@ export default class Install {
         Utils.logStart("Installing Ghosler...");
 
         const result = await PM2Manager.register();
-        result !== 'done' ? Utils.logFail(result) : Utils.logSucceed("Ghosler installation completed.");
+        result !== 'Done' ? Utils.logFail(result) : Utils.logSucceed("Ghosler installation completed.");
     }
 }
