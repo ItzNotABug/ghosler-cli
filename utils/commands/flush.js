@@ -19,8 +19,8 @@ export default class Flush {
         Utils.logStart('Flushing logs...');
 
         PM2Manager.flush();
-        fs.rmSync('.logs/debug.log');
-        fs.rmSync('.logs/error.log');
+        fs.writeFileSync('.logs/debug.log', '');
+        fs.writeFileSync('.logs/error.log', '');
 
         Utils.logSucceed('Logs flushed.');
     }
