@@ -19,9 +19,15 @@ export default class Flush {
         Utils.logStart('Flushing logs...');
 
         PM2Manager.flush();
-        fs.writeFileSync('.logs/debug.log', '');
-        fs.writeFileSync('.logs/error.log', '');
+
+        this.#clearLogFile('error');
+        this.#clearLogFile('debug');
 
         Utils.logSucceed('Logs flushed.');
+    }
+
+    static #clearLogFile(logType) {
+        const logFilePath = `.logs/${logType}.log`;
+        if (fs.existsSync(logFilePath)) fs.writeFileSync(logFilePath, '');
     }
 }
