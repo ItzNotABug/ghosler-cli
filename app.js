@@ -27,4 +27,5 @@ yargs(hideBin(process.argv))
         }, (argv) => PM2Manager.logs(argv.type)
     )
     .help()
+    .version()
     .argv;
