@@ -4,7 +4,7 @@ import {execSync} from 'child_process';
 
 export default class PM2Manager {
 
-    static #productionEnv = '`NODE_ENV=production`';
+    static #productionEnv = 'NODE_ENV=production';
 
     /**
      * Installs dependencies and registers the application with PM2.\

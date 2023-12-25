@@ -27,5 +27,5 @@ yargs(hideBin(process.argv))
         }, (argv) => PM2Manager.logs(argv.type)
     )
     .help()
-    .version()
+    .version('1.0.81') // doesn't read from package.json for some reason.
     .argv;
