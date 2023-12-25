@@ -4,6 +4,8 @@ import {execSync} from 'child_process';
 
 export default class PM2Manager {
 
+    static #productionEnv = '`NODE_ENV=production`';
+
     /**
      * Installs dependencies and registers the application with PM2.\
      * It executes `npm ci` to install dependencies followed by starting the app with PM2.
@@ -12,10 +14,28 @@ export default class PM2Manager {
      *                            or a placeholder error message if the app fails to start.
      */
     static async register() {
-        execSync('export NODE_ENV=production && npm ci && pm2 start app.js --no-autorestart --name ghosler-app');
+        execSync(`${this.#productionEnv} npm ci --omit-dev && ${this.#productionEnv} pm2 start app.js --no-autorestart --name ghosler-app`);
         const runningFine = await this.#checkIfAppOnline();
         if (!runningFine) {
             return 'There was a problem starting out Ghosler. See logs via `ghosler logs error`';
+        } else return 'Done';
+    }
+
+    /**
+     * Restarts the Ghosler application.\
+     * If the npm parameter is true, it also installs dependencies before restarting, which is useful for updates.
+     *
+     * @param {boolean} npm If true, the installations dependencies before restarting the app.
+     * @returns {Promise<string>} A promise that resolves to the string 'Done' if the app restarts successfully,
+     *                            or a placeholder error message if the restart fails.
+     */
+    static async restart(npm = false) {
+        if (npm) execSync(`pm2 stop ghosler-app && ${this.#productionEnv} npm ci --omit-dev && ${this.#productionEnv} pm2 restart ghosler-app`);
+        else execSync('pm2 restart ghosler-app');
+
+        const runningFine = await this.#checkIfAppOnline();
+        if (!runningFine) {
+            return 'There was a problem restarting out Ghosler. See logs via `ghosler logs error`';
         } else return 'Done';
     }
 
@@ -32,24 +52,6 @@ export default class PM2Manager {
         logs = lines.join('\n');
 
         type === 'error' ? console.log(chalk.red(logs)) : console.log(logs);
-    }
-
-    /**
-     * Restarts the Ghosler application.\
-     * If the npm parameter is true, it also installs dependencies before restarting, which is useful for updates.
-     *
-     * @param {boolean} npm If true, the installations dependencies before restarting the app.
-     * @returns {Promise<string>} A promise that resolves to the string 'Done' if the app restarts successfully,
-     *                            or a placeholder error message if the restart fails.
-     */
-    static async restart(npm = false) {
-        if (npm) execSync('pm2 stop ghosler-app && export NODE_ENV=production && npm ci && pm2 restart ghosler-app');
-        else execSync('pm2 restart ghosler-app');
-
-        const runningFine = await this.#checkIfAppOnline();
-        if (!runningFine) {
-            return 'There was a problem restarting out Ghosler. See logs via `ghosler logs error`';
-        } else return 'Done';
     }
 
     /**
