@@ -124,10 +124,14 @@ export default class Utils {
             });
 
             // unnecessary files, remove them.
-            [this.#tempDirectory, extractedFolder, '.gitignore', 'LICENSE.md', 'README.md']
-                .forEach(file => {
-                    if (fs.existsSync(file)) fs.rmSync(file, {recursive: true});
-                });
+            [
+                this.#tempDirectory, extractedFolder,
+                '.gitignore', 'LICENSE.md', 'README.md',
+                // we don't need tailwind's build files.
+                'public/styles/tailwind.css', 'tailwind.config.js'
+            ].forEach(file => {
+                if (fs.existsSync(file)) fs.rmSync(file, {recursive: true});
+            });
             return {success: true, message: 'Directory setup completed.'};
         } catch (error) {
             return {success: false, message: error};

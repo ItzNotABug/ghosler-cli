@@ -12,7 +12,7 @@ export default class PM2Manager {
      *                            or a placeholder error message if the app fails to start.
      */
     static async register() {
-        execSync('npm ci && pm2 start app.js --no-autorestart --name ghosler-app');
+        execSync('export NODE_ENV=production && npm ci && pm2 start app.js --no-autorestart --name ghosler-app');
         const runningFine = await this.#checkIfAppOnline();
         if (!runningFine) {
             return 'There was a problem starting out Ghosler. See logs via `ghosler logs error`';
@@ -43,7 +43,7 @@ export default class PM2Manager {
      *                            or a placeholder error message if the restart fails.
      */
     static async restart(npm = false) {
-        if (npm) execSync('pm2 stop ghosler-app && npm ci && pm2 restart ghosler-app');
+        if (npm) execSync('pm2 stop ghosler-app && export NODE_ENV=production && npm ci && pm2 restart ghosler-app');
         else execSync('pm2 restart ghosler-app');
 
         const runningFine = await this.#checkIfAppOnline();
