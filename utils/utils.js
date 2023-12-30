@@ -128,7 +128,8 @@ export default class Utils {
                 this.#tempDirectory, extractedFolder,
                 '.gitignore', 'LICENSE.md', 'README.md',
                 // we don't need tailwind's build files.
-                'public/styles/tailwind.css', 'tailwind.config.js'
+                `${path.join(targetPath, 'tailwind.config.js')}`,
+                `${path.join(targetPath, 'public/styles/tailwind.css')}`,
             ].forEach(file => {
                 if (fs.existsSync(file)) fs.rmSync(file, {recursive: true});
             });
