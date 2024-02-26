@@ -1,14 +1,17 @@
 import fs from 'fs';
+import ora from 'ora';
 import path from 'path';
+import detect from 'detect-port';
 import extract from 'extract-zip';
 import {writeFile} from 'fs/promises';
-import ora from 'ora';
+import PM2Manager from './pm2/manager.js';
 
 /**
  * A utility class.
  */
 export default class Utils {
 
+    // Our `ora` spinner.
     static #spinner = ora({color: 'white', spinner: 'dots'});
 
     // Temporary directory for processing.
@@ -17,11 +20,13 @@ export default class Utils {
     // Full path to the downloaded Ghosler archive.
     static #fullArchivePath = `${this.#tempDirectory}/ghosler-latest.zip`;
 
+    // Urls to download Ghosler from its GitHub source.
     static ghoslerReleaseUrl = 'https://api.github.com/repos/itznotabug/ghosler/releases/latest';
-    static ghoslerDownloadUrl = 'https://github.com/itznotabug/ghosler/archive/refs/tags/{version}.zip';
+    static ghoslerReleaseDownloadUrl = 'https://github.com/itznotabug/ghosler/archive/refs/tags/{version}.zip';
+    static ghoslerBranchDownloadUrl = 'https://github.com/ItzNotABug/ghosler/archive/refs/heads/{branch-name}.zip';
 
     /**
-     * Start the spinner with log message.
+     * Start the spinner with a log message.
      *
      * @param message - The log message to print.
      */
@@ -48,37 +53,64 @@ export default class Utils {
     }
 
     /**
+     * Print a warning message.
+     *
+     * @param message - The log message to print.
+     */
+    static logWarn(message) {
+        this.#spinner.warn(message);
+    }
+
+    /**
      * Delays execution for a specified number of milliseconds.
      *
      * @param {number} ms - The number of milliseconds to wait.
-     * @returns {Promise<void>} A promise that resolves after the specified delay.
+     * @returns {Promise<void>} - A promise that resolves after the specified delay.
      */
     static sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     /**
-     * Checks if the Ghosler app is installed in the current directory.
-     *
-     * @returns {boolean} True if the 'package.json' file exists in the current directory, false otherwise.
-     */
-    static isGhoslerInstalled() {
-        return this.currentGhoslerVersion().status === 'success';
-    }
-
-    /**
      * Clones the Ghosler repository with the latest release version.
      *
-     * @returns {Promise<{success: boolean, message: string}>} The result of the cloning operation, including a success flag and a message.
+     * @param {string} branch - The branch to install Ghosler from.
+     * @returns {Promise<{success: boolean, message: string}>} - The result of the cloning operation, including a success flag and a message.
      */
-    static async cloneGhosler() {
+    static async cloneGhosler(branch = 'release') {
+        if (!branch) {
+            return {
+                success: false,
+                message: 'Branch name cannot be empty. Can either be `release`, `master` or the actual branch name.'
+            };
+        }
+
         try {
             // setup.
             if (!fs.existsSync(this.#tempDirectory)) fs.mkdirSync(this.#tempDirectory);
             if (fs.existsSync(this.#fullArchivePath)) fs.unlinkSync(this.#fullArchivePath);
 
-            const latestVersion = await this.latestReleaseVersion();
-            if (latestVersion === 'na') return {success: false, message: 'Unable to check for the latest version.'};
+            let zipDownloadUrl = '';
 
-            const response = await fetch(this.ghoslerDownloadUrl.replace('{version}', latestVersion));
+            if (branch === 'release') {
+                const latestVersion = await this.latestReleaseVersion();
+                if (latestVersion === 'na') return {success: false, message: 'Unable to check for the latest version!'};
+                zipDownloadUrl = this.ghoslerReleaseDownloadUrl.replace('{version}', latestVersion);
+            } else {
+                zipDownloadUrl = this.ghoslerBranchDownloadUrl.replace('{branch-name}', branch);
+            }
+
+            const response = await fetch(zipDownloadUrl);
+            if (response.status !== 200) {
+                // we don't need a '.temp' directory.
+                if (fs.existsSync(this.#tempDirectory)) {
+                    fs.rmSync(this.#tempDirectory, {recursive: true});
+                }
+
+                return {
+                    success: false,
+                    message: `Branch '${branch}' not found!`
+                };
+            }
+
             const buffer = Buffer.from(await response.arrayBuffer());
             await writeFile(this.#fullArchivePath, buffer);
 
@@ -92,7 +124,7 @@ export default class Utils {
      * Extracts the Ghosler application to a specified target path.
      *
      * @param {string} [targetPath=process.cwd()] - The path where the application should be extracted.
-     * @returns {Promise<{success: boolean, message: string}>} The result of the extraction operation.
+     * @returns {Promise<{success: boolean, message: string}>} - The result of the extraction operation.
      */
     static async extractGhosler(targetPath = process.cwd()) {
         try {
@@ -140,9 +172,18 @@ export default class Utils {
     }
 
     /**
+     * Check if there are multiple Ghosler processes registered to PM2.
+     *
+     * @returns {Promise<boolean>} - A promise that resolves to `true` if multiple instances are registered, `false` otherwise.
+     */
+    static async hasMultipleProcesses() {
+        return await PM2Manager.hasMultipleProcesses();
+    }
+
+    /**
      * Generates a formatted timestamp string.
      *
-     * @returns {string} A timestamp string formatted as 'YYYY-MM-DD_hh-mm-ss'.
+     * @returns {string} - A timestamp string formatted as 'YYYY-MM-DD_hh-mm-ss'.
      */
     static get currentDateStamp() {
         const now = new Date();
@@ -155,7 +196,7 @@ export default class Utils {
     /**
      * Retrieves the latest release version of the Ghosler application.
      *
-     * @returns {Promise<string>} The latest version of the Ghosler application, or 'na' if unable to retrieve.
+     * @returns {Promise<string>} - The latest version of the Ghosler application, or 'na' if unable to retrieve.
      */
     static async latestReleaseVersion() {
         // return '0.2';
@@ -169,11 +210,11 @@ export default class Utils {
     /**
      * Retrieves the current version of Ghosler application, if installed in the current working directory.
      *
-     * @returns {{message: string, status: string}} The status of the operation & a useful message.
+     * @param {string} instancePath - The path of the ghosler instance to check for `package.json` file.
+     * @returns {{message: string, status: string}} - The status of the operation & a useful message.
      */
-    static currentGhoslerVersion() {
-        const cwd = process.cwd();
-        const packageJsonPath = path.join(cwd, 'package.json');
+    static currentGhoslerVersion(instancePath) {
+        const packageJsonPath = path.join(instancePath, 'package.json');
         try {
             if (fs.existsSync(packageJsonPath)) {
                 const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8');
@@ -188,7 +229,7 @@ export default class Utils {
                     } else {
                         return {
                             status: 'error',
-                            message: 'packageJson.version'
+                            message: packageJson.version
                         };
                     }
                 } else {
@@ -209,6 +250,30 @@ export default class Utils {
                 status: 'error',
                 message: 'Error reading current Ghosler version.'
             };
+        }
+    }
+
+    /**
+     * Returns a usable port for a ghosler instance.
+     *
+     * @param {string} instancePath - The path where the app is downloaded.
+     * @param {number} defaultPort - The default port (2369) of the app.
+     * @returns {Promise<void>} - Nothing.
+     * @throws {Error} - If there was a problem finding a usable port or editing the configuration file.
+     */
+    static async configureUsablePort(instancePath, defaultPort = 2369) {
+        try {
+            const usablePort = await detect(defaultPort);
+            const configFilePath = path.join(instancePath, 'config.production.json');
+
+            const instanceConfigContent = fs.readFileSync(configFilePath, 'utf8');
+            const jsonContent = JSON.parse(instanceConfigContent);
+
+            jsonContent.ghosler.port = usablePort;
+
+            await writeFile(configFilePath, JSON.stringify(jsonContent));
+        } catch (err) {
+            throw err;
         }
     }
 }
