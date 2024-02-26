@@ -28,9 +28,6 @@ export default class Restart extends BaseCommand {
      * @returns {Promise<void>} - Nothing.
      */
     static async #performTask(argv) {
-        // const canProceed = await this.canProceed(argv);
-        // if (!canProceed) return;
-
         Utils.logStart('Restarting Ghosler...');
         const result = await PM2Manager.restart(argv.name);
         result.status ? Utils.logSucceed(result.message) : Utils.logFail(result.message);
