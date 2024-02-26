@@ -1,3 +1,4 @@
+import fs from 'fs';
 import Utils from '../../utils.js';
 import PM2Manager from '../../pm2/manager.js';
 
@@ -58,6 +59,16 @@ export default class BaseCommand {
         }
 
         return true;
+    }
+
+    /**
+     * Check whether a directory is empty or not.
+     *
+     * @param {string} path - The directory path to check.
+     * @returns {Promise<boolean>} - A promise that resolves to `true` if the directory is empty, `false` otherwise.
+     */
+    static async isDirectoryEmpty(path = process.cwd()) {
+        return fs.readdirSync(path).length === 0;
     }
 
     /**

@@ -46,7 +46,13 @@ export default class Install extends BaseCommand {
      * @returns {Promise<void>} - Nothing.
      */
     static async #performTask(argv) {
-        Utils.logStart('Initiating');
+        Utils.logStart('Initializing');
+
+        const canProceed = await this.isDirectoryEmpty();
+        if (!canProceed) {
+            Utils.logFail('Current directory is not empty!');
+            return;
+        }
 
         // noinspection JSUnresolvedReference
         const branch = argv.branch;
