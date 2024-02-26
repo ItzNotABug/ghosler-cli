@@ -79,7 +79,7 @@ export default class Install extends BaseCommand {
 
         Utils.logStart("Installing Ghosler...");
 
-        await Utils.configureUsablePort(process.cwd());
+        await Utils.updateConfigurations(branch, instance, process.cwd());
 
         const result = await PM2Manager.register(branch, instance);
         result.status ? Utils.logSucceed(result.message) : Utils.logFail(result.message);

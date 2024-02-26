@@ -101,6 +101,9 @@ export default class Update extends BaseCommand {
 
         fs.rmSync(updatePath, {recursive: true, force: true});
 
+        Utils.logStart('Updating Ghosler configuration file...');
+        await Utils.updateConfigurations('release', name, instancePath, false);
+
         Utils.logStart('Restarting Ghosler...');
         const result = await PM2Manager.restart(name, true);
 

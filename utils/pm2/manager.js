@@ -28,7 +28,7 @@ export default class PM2Manager {
      * Registers a new instance of the application with PM2, including dependency installation.
      * Automatically generates a unique name if multiple instances are to be registered.
      *
-     * @param {string} branch - The branch to pull the instance from.
+     * @param {string} branch - The branch the instance is pulled from.
      * @param {string|null} instanceName - A custom instance provided by the user.
      * @returns {Promise<{status: boolean, message: string}>} - A promise that resolves to the registered status with a message.
      */
@@ -62,10 +62,54 @@ export default class PM2Manager {
      * @returns {Promise<{status: boolean, message: string}>} - A promise that resolves to the registered status with a message.
      */
     static async restart(name, isUpdate = false) {
-        if (isUpdate) {
-            const instance = await this.getProcess(name);
-            await this.#execAsync(`pm2 stop ${name} && ${this.#productionEnv} npm ci --prefix ${instance.path} --omit-dev && ${this.#productionEnv} pm2 restart ${name}`);
-        } else await this.#execAsync(`pm2 restart ${name}`);
+        let path;
+        let branch;
+        let appName = name;
+        let shouldForceUpdate = isUpdate;
+
+        const instance = await this.getProcess(appName);
+        path = instance?.path;
+
+        if (!instance) {
+            // check if there's currently a package.json in current dir.
+            const packageJson = Utils.fileAsJson(process.cwd(), 'config.production.json');
+            if (packageJson) {
+                const ghosler = packageJson['ghosler'];
+                if (ghosler && ghosler.instance) {
+                    path = process.cwd();
+                    appName = ghosler.instance;
+                    shouldForceUpdate = true;
+                    if (ghosler.branch) branch = ghosler.branch;
+                } else {
+                    return {
+                        status: false,
+                        message: 'Could not find any active processes via PM2 or in the current directory.'
+                    };
+                }
+            } else {
+                return {
+                    status: false,
+                    message: 'Could not find any active processes via PM2 or in the current directory.'
+                };
+            }
+        }
+
+        if (shouldForceUpdate) {
+            try {
+                await this.#execAsync(`pm2 stop ${appName}`);
+            } catch (error) {
+                // ignore as the process may not exist, so lets register it instead.
+                if (branch) {
+                    return await this.register(branch, appName);
+                } else {
+                    return {
+                        status: false,
+                        message: 'Could not find any active processes via PM2 or in the current directory.'
+                    };
+                }
+            }
+            await this.#execAsync(`${this.#productionEnv} npm ci ${(path) ? `--prefix ${path}` : ''} --omit-dev && ${this.#productionEnv} pm2 restart ${appName}`);
+        } else await this.#execAsync(`pm2 restart ${appName}`);
 
         await this.#updateProcesses();
 
@@ -140,6 +184,16 @@ export default class PM2Manager {
      */
     static async flush(name) {
         await this.#execAsync(`pm2 flush ${name}`);
+    }
+
+    /**
+     * Stops a specified application instance managed by PM2.
+     *
+     * @param {string} name - The name of the application instance.
+     */
+    static async stop(name) {
+        await this.#execAsync(`pm2 stop ${name}`);
+        await this.#updateProcesses();
     }
 
     /**

@@ -208,18 +208,16 @@ export default class Utils {
     }
 
     /**
-     * Retrieves the current version of Ghosler application, if installed in the current working directory.
+     * Retrieves the current version of Ghosler application, if installed in the given directory.
      *
      * @param {string} instancePath - The path of the ghosler instance to check for `package.json` file.
      * @returns {{message: string, status: string}} - The status of the operation & a useful message.
      */
     static currentGhoslerVersion(instancePath) {
-        const packageJsonPath = path.join(instancePath, 'package.json');
         try {
-            if (fs.existsSync(packageJsonPath)) {
-                const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8');
-                const packageJson = JSON.parse(packageJsonContent);
+            const packageJson = this.fileAsJson(instancePath, 'package.json');
 
+            if (packageJson) {
                 if (packageJson && packageJson.version) {
                     if (packageJson.name && packageJson.name === 'ghosler' && packageJson.version) {
                         return {
@@ -254,26 +252,49 @@ export default class Utils {
     }
 
     /**
-     * Returns a usable port for a ghosler instance.
+     * Updates the default port and other properties in the config file of a ghosler instance.
      *
+     * @param {string} branch - The branch the instance is pulled from.
+     * @param {string} instanceName - The name of the to-be registered app.
      * @param {string} instancePath - The path where the app is downloaded.
+     * @param {boolean} changePort - Whether to update the port in the config file.
      * @param {number} defaultPort - The default port (2369) of the app.
      * @returns {Promise<void>} - Nothing.
      * @throws {Error} - If there was a problem finding a usable port or editing the configuration file.
      */
-    static async configureUsablePort(instancePath, defaultPort = 2369) {
+    static async updateConfigurations(branch, instanceName, instancePath, changePort = true, defaultPort = 2369) {
         try {
-            const usablePort = await detect(defaultPort);
-            const configFilePath = path.join(instancePath, 'config.production.json');
+            const configFileName = 'config.production.json';
+            const jsonContent = this.fileAsJson(instancePath, configFileName);
 
-            const instanceConfigContent = fs.readFileSync(configFilePath, 'utf8');
-            const jsonContent = JSON.parse(instanceConfigContent);
+            const ghoslerConfig = jsonContent['ghosler'];
 
-            jsonContent.ghosler.port = usablePort;
-
-            await writeFile(configFilePath, JSON.stringify(jsonContent));
+            ghoslerConfig.branch = branch;
+            ghoslerConfig.instance = instanceName;
+            if (changePort) ghoslerConfig.port = await detect(defaultPort);
+            await writeFile(path.join(instancePath, configFileName), JSON.stringify(jsonContent));
         } catch (err) {
             throw err;
+        }
+    }
+
+    /**
+     * Retrieves the contents of the `package.json` file at the given path if one exists..
+     *
+     * @param {string} instancePath - The path of the ghosler instance.
+     * @param {string} fileName - The name of the file to look for.
+     * @returns {Object|null} - The contents of the file as parsed JSON, null if any error occurred.
+     */
+    static fileAsJson(instancePath, fileName) {
+        try {
+            const packageJsonPath = path.join(instancePath, fileName);
+            if (fs.existsSync(packageJsonPath)) {
+                const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8');
+                return JSON.parse(packageJsonContent);
+            } else return null;
+        } catch (error) {
+            console.log(error);
+            return null;
         }
     }
 }
