@@ -1,13 +1,14 @@
 import fs from 'fs';
 import path from 'path';
-import Backup from './backup.js';
 import Utils from '../utils.js';
+import Backup from './backup.js';
 import PM2Manager from '../pm2/manager.js';
+import BaseCommand from './base/command.js';
 
 /**
  * Class that performs updates.
  */
-export default class Update {
+export default class Update extends BaseCommand {
 
     // files to ignore.
     static #toIgnore = [
@@ -16,32 +17,58 @@ export default class Update {
         'config.debug.json', 'custom-template.ejs', 'config.production.json',
     ];
 
+    static yargsCommand() {
+        return {
+            command: 'update',
+            description: 'Check and update Ghosler if available.',
+            builder: (yargs) => {
+                return yargs.option('name', {
+                    type: 'string',
+                    description: 'Name of the Ghosler instance to update.',
+                });
+            },
+            handler: async (argv) => await this.#performTask(argv)
+        };
+    }
+
     /**
      * Start the update task.
      *
-     * @returns {Promise<void>}
+     * @param argv {Object} - `yargs` argument object containing user input.
+     * @returns {Promise<void>} - Nothing.
      */
-    static async doUpdate() {
-        if (!Utils.isGhoslerInstalled()) {
-            Utils.logFail('You sure that Ghosler is installed in this directory?');
+    static async #performTask(argv) {
+        const canProceed = await this.canProceed(argv);
+        if (!canProceed) return;
+
+        Utils.logStart('Checking for the latest version...');
+        const instance = await PM2Manager.getProcess(argv.name);
+        if (!instance) {
+            Utils.logFail(`Unable to find the registered process: ${argv.name}`);
             return;
         }
 
-        Utils.logStart('Checking for the latest version...');
+        const latestVersion = await this.#checkVersion(instance.path);
 
-        const latestVersion = await this.#checkVersion();
         if (latestVersion.status === 'error') {
             Utils.logFail(latestVersion.message);
         } else if (!latestVersion.update) {
             Utils.logSucceed(latestVersion.message);
         } else if (latestVersion.update) {
             Utils.logSucceed(`Latest version: ${latestVersion.message}`);
-            await this.#update();
+            await this.#update(argv.name, instance.path);
         }
     }
 
-    static async #update() {
-        await Backup.doBackup();
+    /**
+     * Backup and then update the Ghosler instance.
+     *
+     * @param {string} name - The ghosler instance to update.
+     * @param {string} instancePath - The path of the ghosler instance.
+     * @returns {Promise<void>} - Nothing.
+     */
+    static async #update(name, instancePath) {
+        await Backup.backupInstance(name, instancePath);
 
         // clone ghosler, extract.
         Utils.logStart('Cloning...');
@@ -54,32 +81,33 @@ export default class Update {
         }
 
         // Setting up directories
-        const extraction = await Utils.extractGhosler(`${path.join(process.cwd(), '.update')}`);
-        if (extraction.success) {
-            Utils.logSucceed(extraction.message);
-        } else {
+        const updatePath = path.join(instancePath, '.update');
+        const extraction = await Utils.extractGhosler(updatePath);
+        if (!extraction.success) {
             Utils.logFail(`Failed to setup the directory, ${extraction.message}`);
-            fs.rmSync('.update', {recursive: true, force: true});
+            fs.rmSync(updatePath, {recursive: true, force: true});
             return;
         }
 
+        Utils.logSucceed(extraction.message);
+
         Utils.logStart('Removing previous files...');
-        this.#deleteUnwantedFiles(this.#toIgnore);
+        this.#deleteUnwantedFiles(this.#toIgnore, instancePath);
         Utils.logSucceed('Previous files removed.');
 
         Utils.logStart('Moving upload files...');
-        this.#moveFolderSync(`${path.join(process.cwd(), '.update')}`, process.cwd(), this.#toIgnore);
+        this.#moveFolderSync(updatePath, instancePath, this.#toIgnore);
         Utils.logSucceed('Files moved.');
 
-        fs.rmSync('.update', {recursive: true, force: true});
+        fs.rmSync(updatePath, {recursive: true, force: true});
 
         Utils.logStart('Restarting Ghosler...');
-        const result = await PM2Manager.restart(true);
-        if (result === 'Done') {
-            Utils.logSucceed('Ghosler updated successfully!');
-        } else {
-            Utils.logFail(result);
-            console.log('Restore your latest backup if something went wrong & execute `ghosler restart`.');
+        const result = await PM2Manager.restart(name, true);
+
+        if (result.status) Utils.logSucceed(result.message);
+        else {
+            Utils.logFail(result.message);
+            console.log(`Restore your latest backup if something went wrong & execute \`ghosler restart --name ${name}\`.`);
         }
     }
 
@@ -87,16 +115,17 @@ export default class Update {
      * Remove previous files of the app.
      *
      * @param {string[]} toIgnore - Files to ignore.
+     * @param {string} instancePath - The path of the ghosler instance.
      */
-    static #deleteUnwantedFiles(toIgnore) {
+    static #deleteUnwantedFiles(toIgnore, instancePath) {
         const tempDirName = '.update';
 
-        let entries = fs.readdirSync(process.cwd(), {withFileTypes: true});
+        let entries = fs.readdirSync(instancePath, {withFileTypes: true});
         for (let entry of entries) {
             // Ignore files/directories in the toIgnore list or the temp directory
             if (toIgnore.includes(entry.name) || entry.name === tempDirName) continue;
 
-            let currentPath = path.join(process.cwd(), entry.name);
+            let currentPath = path.join(instancePath, entry.name);
             if (entry.isDirectory()) {
                 fs.rmSync(currentPath, {recursive: true});
             } else {
@@ -132,11 +161,12 @@ export default class Update {
     /**
      * Check if there is an update available.
      *
+     * @param {string} instancePath - The path of the ghosler instance to check for version.
      * @returns {Promise<{update: boolean, message: string}|{message: string, status: string}>}
      */
-    static async #checkVersion() {
+    static async #checkVersion(instancePath) {
         const latestVersion = await Utils.latestReleaseVersion();
-        const currentVersion = Utils.currentGhoslerVersion();
+        const currentVersion = Utils.currentGhoslerVersion(instancePath);
         if (currentVersion.status === 'success') {
             if (latestVersion !== 'na' && latestVersion > currentVersion.message) {
                 return {
@@ -149,5 +179,4 @@ export default class Update {
             };
         } else return currentVersion;
     }
-
 }
