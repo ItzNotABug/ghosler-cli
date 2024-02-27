@@ -29,15 +29,18 @@ export default class PM2Manager {
      * Automatically generates a unique name if multiple instances are to be registered.
      *
      * @param {string} branch - The branch the instance is pulled from.
-     * @param {string|null} instanceName - A custom instance provided by the user.
+     * @param {string} instanceName - A custom instance provided by the user.
+     * @param {string} instancePath - The path where the ghosler instance will be installed.
      * @returns {Promise<{status: boolean, message: string}>} - A promise that resolves to the registered status with a message.
      */
-    static async register(branch = 'release', instanceName = this.baseAppName) {
+    static async register(branch = 'release', instanceName = this.baseAppName, instancePath = process.cwd()) {
         let appName = instanceName;
         if (branch !== 'release') appName += `-${branch}`;
 
         // Generate a unique name if required.
         appName = await this.#generateUniqueName(appName);
+
+        await Utils.updateConfigurations(branch, appName, instancePath);
 
         await this.#execAsync(`${this.#productionEnv} npm ci --omit-dev && ${this.#productionEnv} pm2 start app.js --no-autorestart --name ${appName} -- ${this.#ghoslerInstanceTypeIdentifier}`);
         await this.#updateProcesses();
@@ -100,7 +103,7 @@ export default class PM2Manager {
             } catch (error) {
                 // ignore as the process may not exist, so lets register it instead.
                 if (branch) {
-                    return await this.register(branch, appName);
+                    return await this.register(branch, appName, path);
                 } else {
                     return {
                         status: false,
