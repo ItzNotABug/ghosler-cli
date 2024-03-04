@@ -27,6 +27,7 @@ npm i ghosler-cli -g
 | `ghosler backup`    | Backup Ghosler instance (Directory backup).                                                                                                 |
 | `ghosler uninstall` | Remove Ghosler, its all data and configurations completely.<br/> **Note: Download your local backups before uninstalling Ghosler.**         |
 | `ghosler logs`      | Print logs for Ghosler.<br>Option: `--type` where values can be `error`, `out`. Default: `out`.                                             |
+| `ghosler migrate`   | Perform migration if the latest release requires one.                                                                                       |
 
 Note: If there are multiple processes, you must specify the process/instance name to perform any of the above
 operations.
