@@ -31,16 +31,16 @@ export default class PM2Manager {
      * @param {string} branch - The branch the instance is pulled from.
      * @param {string} instanceName - A custom instance provided by the user.
      * @param {string} instancePath - The path where the ghosler instance will be installed.
+     * @param {boolean} isForceRestart - Whether this is a force restart via register.
      * @returns {Promise<{status: boolean, message: string}>} - A promise that resolves to the registered status with a message.
      */
-    static async register(branch = 'release', instanceName = this.baseAppName, instancePath = process.cwd()) {
+    static async register(branch = 'release', instanceName = this.baseAppName, instancePath = process.cwd(), isForceRestart = false) {
         let appName = instanceName;
         if (branch !== 'release') appName += `-${branch}`;
 
         // Generate a unique name if required.
-        appName = await this.#generateUniqueName(appName);
-
-        await Utils.updateConfigurations(branch, appName, instancePath);
+        appName = !isForceRestart ? await this.#generateUniqueName(appName) : instanceName;
+        if (!isForceRestart) await Utils.updateConfigurations(branch, appName, instancePath);
 
         await this.#execAsync(`${this.#productionEnv} npm ci --omit-dev && ${this.#productionEnv} pm2 start app.js --no-autorestart --name ${appName} -- ${this.#ghoslerInstanceTypeIdentifier}`);
         await this.#updateProcesses();
@@ -58,7 +58,27 @@ export default class PM2Manager {
     }
 
     /**
-     * Restarts a specified application instance, with optional dependency reinstallation.
+     * Force register an older instance on a migration.
+     *
+     * @param {string} branch - The branch name for the instance.
+     * @param {string} instanceName - An instance name provided by the user.
+     * @param {string} instancePath - The path where the ghosler instance is installed.
+     * @returns {Promise<boolean>} - A promise that resolves to `true` if the register succeeded, `false` otherwise.
+     */
+    static async forceRegisterForMigration(branch = 'release', instanceName = this.baseAppName, instancePath = process.cwd()) {
+        try {
+            await this.stop(instanceName);
+            await this.#execAsync(`pm2 delete ${instanceName}`);
+            await this.register(branch, instanceName, instancePath, true);
+            return true;
+        } catch (error) {
+            console.log(error);
+            return false;
+        }
+    }
+
+    /**
+     * Restarts a specified application instance, with optional dependency re-installation.
      *
      * @param {string} name - The name of the application instance to restart.
      * @param {boolean} isUpdate - If true, reinstall dependencies before restarting.
@@ -289,7 +309,10 @@ export default class PM2Manager {
         }
 
         const processes = JSON.parse(pm2Processes)
-            .filter(({pm2_env: {args}}) => args && args.some(arg => arg === this.#ghoslerInstanceTypeIdentifier))
+            .filter(({name, pm2_env: {args}}) =>
+                (args && args.some(arg => arg === this.#ghoslerInstanceTypeIdentifier)) ||
+                (!args || args.length === 0) && (name === this.baseAppName || name.startsWith(this.baseAppName))
+            )
             .map(({pid, name, pm2_env: {pm_cwd, status}}) => ({pid, name, path: pm_cwd, status}));
 
         this.#cachedProcessNames = processes;

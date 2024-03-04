@@ -20,6 +20,12 @@ export default class Utils {
     // Full path to the downloaded Ghosler archive.
     static #fullArchivePath = `${this.#tempDirectory}/ghosler-latest.zip`;
 
+    /**
+     * The version of ghosler-cli.
+     *
+     * @type {string}
+     */
+    static cliPackageVersion = '1.0.84';
     // Urls to download Ghosler from its GitHub source.
     static ghoslerReleaseUrl = 'https://api.github.com/repos/itznotabug/ghosler/releases/latest';
     static ghoslerReleaseDownloadUrl = 'https://github.com/itznotabug/ghosler/archive/refs/tags/{version}.zip';
@@ -68,6 +74,14 @@ export default class Utils {
      * @returns {Promise<void>} - A promise that resolves after the specified delay.
      */
     static sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    /**
+     * Converts the given version into a comparable integer.
+     *
+     * @param {string} version - The version in string format.
+     * @returns {number} - The integer version of the provided string format.
+     */
+    static versionToInt = (version) => parseInt(version.replace(/\./g, ''), 10);
 
     /**
      * Clones the Ghosler repository with the latest release version.
@@ -259,19 +273,27 @@ export default class Utils {
      * @param {string} instancePath - The path where the app is downloaded.
      * @param {boolean} changePort - Whether to update the port in the config file.
      * @param {number} defaultPort - The default port (2369) of the app.
+     * @param {boolean} isMigration - Whether this is called on a migration.
      * @returns {Promise<void>} - Nothing.
      * @throws {Error} - If there was a problem finding a usable port or editing the configuration file.
      */
-    static async updateConfigurations(branch, instanceName, instancePath, changePort = true, defaultPort = 2369) {
+    static async updateConfigurations(branch, instanceName, instancePath, changePort = true, defaultPort = 2369, isMigration = false) {
         try {
             const configFileName = 'config.production.json';
             const jsonContent = this.fileAsJson(instancePath, configFileName);
 
             const ghoslerConfig = jsonContent['ghosler'];
 
-            ghoslerConfig.branch = branch;
-            ghoslerConfig.instance = instanceName;
-            if (changePort) ghoslerConfig.port = await detect(defaultPort);
+            if (isMigration) {
+                if (!ghoslerConfig.branch) ghoslerConfig.branch = branch;
+                if (!ghoslerConfig.instance) ghoslerConfig.instance = instanceName;
+            } else {
+                ghoslerConfig.branch = branch;
+                ghoslerConfig.instance = instanceName;
+                if (changePort) ghoslerConfig.port = await detect(defaultPort);
+            }
+
+            // just write it anyway...
             await writeFile(path.join(instancePath, configFileName), JSON.stringify(jsonContent));
         } catch (err) {
             throw err;
@@ -279,7 +301,7 @@ export default class Utils {
     }
 
     /**
-     * Retrieves the contents of the `package.json` file at the given path if one exists..
+     * Retrieves the contents of the `package.json` file at the given path if one exists.
      *
      * @param {string} instancePath - The path of the ghosler instance.
      * @param {string} fileName - The name of the file to look for.

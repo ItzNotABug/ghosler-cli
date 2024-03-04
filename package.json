@@ -17,6 +17,10 @@
   "bin": {
     "ghosler": "app.js"
   },
+  "scripts": {
+    "update-version": "npm run -s update-version-internal",
+    "update-version-internal": "node -e \"console.log('Updating version...'); const fs = require('fs'); const path = './utils/utils.js'; let content = fs.readFileSync(path, 'utf8'); content = content.replace(/static cliPackageVersion = .*/, 'static cliPackageVersion = \\'' + process.env.npm_package_version + '\\';'); fs.writeFileSync(path, content, 'utf8'); console.log('Version updated to:', process.env.npm_package_version);\""
+  },
   "author": "@itznotabug",
   "dependencies": {
     "chalk": "^5.3.0",
