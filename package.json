@@ -1,6 +1,6 @@
 {
   "name": "ghosler-cli",
-  "version": "1.0.82",
+  "version": "1.0.84",
   "description": "A basic, simple CLI for installing, managing a Ghosler instance.",
   "main": "app.js",
   "type": "module",
@@ -17,12 +17,21 @@
   "bin": {
     "ghosler": "app.js"
   },
+  "scripts": {
+    "update-version": "npm run -s update-version-internal",
+    "update-version-internal": "node -e \"console.log('Updating version...'); const fs = require('fs'); const path = './utils/utils.js'; let content = fs.readFileSync(path, 'utf8'); content = content.replace(/static cliPackageVersion = .*/, 'static cliPackageVersion = \\'' + process.env.npm_package_version + '\\';'); fs.writeFileSync(path, content, 'utf8'); console.log('Version updated to:', process.env.npm_package_version);\""
+  },
   "author": "@itznotabug",
   "dependencies": {
     "chalk": "^5.3.0",
+    "detect-port": "^1.5.1",
     "extract-zip": "^2.0.1",
+    "inquirer": "^8.2.6",
     "ora": "^7.0.1",
     "yargs": "^17.7.2",
     "zip-a-folder": "^3.1.5"
+  },
+  "devDependencies": {
+    "@types/yargs": "^17.0.32"
   }
 }
