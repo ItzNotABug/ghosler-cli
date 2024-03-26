@@ -1,6 +1,6 @@
 {
   "name": "ghosler-cli",
-  "version": "1.0.84",
+  "version": "1.0.86",
   "description": "A basic, simple CLI for installing, managing a Ghosler instance.",
   "main": "app.js",
   "type": "module",

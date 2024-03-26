@@ -25,7 +25,7 @@ export default class Utils {
      *
      * @type {string}
      */
-    static cliPackageVersion = '1.0.84';
+    static cliPackageVersion = '1.0.86';
     // Urls to download Ghosler from its GitHub source.
     static ghoslerReleaseUrl = 'https://api.github.com/repos/itznotabug/ghosler/releases/latest';
     static ghoslerReleaseDownloadUrl = 'https://github.com/itznotabug/ghosler/archive/refs/tags/{version}.zip';
@@ -281,7 +281,10 @@ export default class Utils {
     static async updateConfigurations(branch, instanceName, instancePath, changePort = true, defaultPort = 2369, isMigration = false) {
         try {
             const configFileName = 'config.production.json';
-            const jsonContent = this.fileAsJson(instancePath, configFileName);
+            const newConfigFileName = './configuration/config.production.json';
+            let jsonContent = this.fileAsJson(instancePath, configFileName) ?? this.fileAsJson(instancePath, newConfigFileName);
+
+            if (!jsonContent) return; // what even happened here!?
 
             const ghoslerConfig = jsonContent['ghosler'];
 
