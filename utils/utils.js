@@ -173,6 +173,7 @@ export default class Utils {
             [
                 this.#tempDirectory, extractedFolder,
                 '.gitignore', 'LICENSE.md', 'README.md',
+                'Dockerfile', '.dockerignore', 'docker-install.sh',
                 // we don't need tailwind's build files.
                 `${path.join(targetPath, 'tailwind.config.js')}`,
                 `${path.join(targetPath, 'public/styles/tailwind.css')}`,

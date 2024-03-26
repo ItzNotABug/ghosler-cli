@@ -14,6 +14,7 @@ export default class Update extends BaseCommand {
     static #toIgnore = [
         '.logs', 'files', '.backups',
         'README.md', 'LICENSE.md', '.gitignore',
+        'Dockerfile', '.dockerignore', 'docker-install.sh',
         'config.debug.json', 'custom-template.ejs', 'config.production.json',
     ];
 
