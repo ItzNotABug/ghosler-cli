@@ -21,10 +21,7 @@ export default class Update extends BaseCommand {
         'config.production.json',
 
         // post docker
-        'configuration/config.debug.json',
-        'configuration/config.local.json',
-        'configuration/custom-template.ejs',
-        'configuration/config.production.json',
+        'configuration', // <<< directory
         'Dockerfile', '.dockerignore', 'docker-install.sh',
     ];
 
