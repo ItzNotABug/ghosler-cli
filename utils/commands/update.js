@@ -14,8 +14,18 @@ export default class Update extends BaseCommand {
     static #toIgnore = [
         '.logs', 'files', '.backups',
         'README.md', 'LICENSE.md', '.gitignore',
+
+        // pre docker
+        'config.debug.json',
+        'custom-template.ejs',
+        'config.production.json',
+
+        // post docker
+        'configuration/config.debug.json',
+        'configuration/config.local.json',
+        'configuration/custom-template.ejs',
+        'configuration/config.production.json',
         'Dockerfile', '.dockerignore', 'docker-install.sh',
-        'config.debug.json', 'custom-template.ejs', 'config.production.json',
     ];
 
     static yargsCommand() {
