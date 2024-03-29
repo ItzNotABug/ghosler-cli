@@ -25,7 +25,7 @@ export default class Utils {
      *
      * @type {string}
      */
-    static cliPackageVersion = '1.0.86';
+    static cliPackageVersion = '1.0.88';
     // Urls to download Ghosler from its GitHub source.
     static ghoslerReleaseUrl = 'https://api.github.com/repos/itznotabug/ghosler/releases/latest';
     static ghoslerReleaseDownloadUrl = 'https://github.com/itznotabug/ghosler/archive/refs/tags/{version}.zip';
